@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SecretSnap - JS Edition</title>
     <style>
-        /* Replicating the Black/Green theme */
         body {
             background-color: black;
             color: white;
@@ -19,7 +18,7 @@
 
         h1 {
             font-family: 'Impact', sans-serif;
-            color: red; /* Matching the 'SecretSnap' label color */
+            color: red;
             font-size: 3rem;
             margin-bottom: 20px;
         }
@@ -32,13 +31,12 @@
             background-color: #1a1a1a;
             padding: 20px;
             border-radius: 10px;
-            flex-wrap: wrap; /* Added for mobile responsiveness */
+            flex-wrap: wrap;
         }
 
-        /* Left Side: Image Display */
         .image-section {
             flex: 1;
-            background-color: green; /* Matching the frame background */
+            background-color: green;
             padding: 10px;
             border-radius: 5px;
             display: flex;
@@ -55,7 +53,6 @@
             object-fit: contain;
         }
 
-        /* Right Side: Controls */
         .controls-section {
             flex: 1;
             background-color: white;
@@ -107,7 +104,6 @@
             opacity: 0.8;
         }
 
-        /* Matching button colors */
         .btn-open { background-color: blue; }
         .btn-save { background-color: green; }
         .btn-hide { background-color: red; }
@@ -144,16 +140,13 @@
     </div>
 
     <script>
-        // --- LOGIC: LSB Steganography in Pure JS ---
-
         const fileInput = document.getElementById('fileInput');
         const previewImage = document.getElementById('previewImage');
         const canvas = document.getElementById('stegoCanvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true }); // Optimized for reading
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const messageInput = document.getElementById('messageInput');
         const secretKeyInput = document.getElementById('secretKey');
 
-        // 1. Load Image
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -164,27 +157,24 @@
                     canvas.width = img.width;
                     canvas.height = img.height;
                     ctx.drawImage(img, 0, 0);
-                    previewImage.src = canvas.toDataURL(); // Show preview
-                    messageInput.value = ""; // Clear old message
+                    previewImage.src = canvas.toDataURL();
+                    messageInput.value = "";
                 }
                 img.src = event.target.result;
             }
             reader.readAsDataURL(file);
         });
 
-        // Helper: Convert string to binary (8-bit padding)
         function textToBinary(text) {
             let binary = "";
             for (let i = 0; i < text.length; i++) {
                 let bin = text[i].charCodeAt(0).toString(2);
-                binary += "00000000".slice(bin.length) + bin; // Pad to 8 bits
+                binary += "00000000".slice(bin.length) + bin;
             }
             return binary;
         }
 
-        // 2. Hide Message (LSB Technique)
         function hideMessage() {
-            // Password Check
             if (secretKeyInput.value !== "554") {
                 alert("Error: Wrong Key! Please enter '554'.");
                 return;
@@ -200,41 +190,33 @@
                 return;
             }
 
-            // Prepare Text: Add a terminator "||END||" so we know when to stop reading
             const fullMessage = messageInput.value + "||END||";
             const binaryMessage = textToBinary(fullMessage);
             
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const data = imageData.data;
 
-            // Check if image is big enough (we use 1 pixel per bit approx, specifically the Red channel)
-            // data.length / 4 = total pixels. 
             if (binaryMessage.length > data.length / 4) {
                 alert("Message is too long for this image! Use a larger image or shorter text.");
                 return;
             }
 
-            // LSB Injection
             let binIndex = 0;
-            for (let i = 0; i < data.length; i += 4) { // Iterate pixels
+            for (let i = 0; i < data.length; i += 4) {
                 if (binIndex < binaryMessage.length) {
-                    // Modify Red Channel LSB
-                    // Clear the last bit (& 254) then Add the message bit
                     data[i] = (data[i] & 254) | parseInt(binaryMessage[binIndex]);
                     binIndex++;
                 } else {
-                    break; // Stop loop once message is written
+                    break;
                 }
             }
 
             ctx.putImageData(imageData, 0, 0);
-            previewImage.src = canvas.toDataURL(); // Update preview to show the 'encoded' image
+            previewImage.src = canvas.toDataURL();
             alert("Message hidden successfully! You can now Save.");
         }
 
-        // 3. Reveal Message (Optimized for Performance)
         function revealMessage() {
-            // Password Check
             if (secretKeyInput.value !== "554") {
                 alert("Error: Wrong Key! Please enter '554'.");
                 return;
@@ -252,20 +234,15 @@
             let extractedText = "";
             const terminator = "||END||";
 
-            // Extract LSBs Loop
             for (let i = 0; i < data.length; i += 4) {
-                // Read Red Channel LSB
                 currentByte += (data[i] & 1).toString();
 
-                // Once we have 8 bits, convert to char
                 if (currentByte.length === 8) {
                     const charCode = parseInt(currentByte, 2);
                     const char = String.fromCharCode(charCode);
                     extractedText += char;
-                    currentByte = ""; // Reset for next char
+                    currentByte = "";
 
-                    // Check for terminator every time we add a char
-                    // This prevents looping through millions of pixels unnecessarily
                     if (extractedText.endsWith(terminator)) {
                         const secret = extractedText.slice(0, -terminator.length);
                         messageInput.value = secret;
@@ -275,19 +252,17 @@
                 }
             }
 
-            // If we finish the loop without finding the terminator
             alert("No hidden message found with this key/image.");
-            messageInput.value = ""; // Optional: show garbage found so far? Better to show nothing.
+            messageInput.value = "";
         }
 
-        // 4. Download Image
         function downloadImage() {
             if (canvas.width === 0) {
                 alert("No image to save.");
                 return;
             }
             const link = document.createElement('a');
-            link.download = 'secret-image.png'; // Must use PNG to preserve bits
+            link.download = 'secret-image.png';
             link.href = canvas.toDataURL("image/png");
             link.click();
         }
